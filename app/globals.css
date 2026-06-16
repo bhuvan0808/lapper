@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Lapper theme — cream & stone.
+ * HSL triplets so Tailwind alpha modifiers (e.g. bg-primary/80) work.
+ */
+@layer base {
+  :root {
+    /* Surfaces */
+    --background: 40 38% 97%; /* #FAF8F4 */
+    --foreground: 0 0% 17%; /* #2C2C2C */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 0 0% 17%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 17%;
+
+    /* Brand */
+    --primary: 33 24% 44%; /* #8B7355 stone */
+    --primary-foreground: 40 38% 98%;
+    --accent: 36 23% 71%; /* #C6B8A3 */
+    --accent-foreground: 0 0% 17%;
+    --secondary: 40 30% 94%; /* soft cream chip */
+    --secondary-foreground: 0 0% 17%;
+
+    /* Neutrals */
+    --muted: 40 30% 94%;
+    --muted-foreground: 0 0% 48%; /* #7A7A7A */
+    --border: 36 24% 88%; /* #E7E1D8 */
+    --input: 36 24% 88%;
+    --ring: 33 24% 44%;
+
+    /* Status */
+    --success: 137 21% 39%; /* #4F7A5B */
+    --success-foreground: 40 38% 98%;
+    --destructive: 0 60% 60%; /* #D65A5A */
+    --destructive-foreground: 40 38% 98%;
+
+    --radius: 20px;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible, on-brand focus states for keyboard users */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  ::selection {
+    @apply bg-accent/40;
+  }
+}
+
+@layer utilities {
+  /* Subtle warm grain so flat cream surfaces never feel sterile */
+  .bg-grain {
+    background-image: radial-gradient(
+      hsl(var(--accent) / 0.06) 1px,
+      transparent 1px
+    );
+    background-size: 18px 18px;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+/* Native color input styling — strip the chunky default chrome */
+input[type="color"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  background: transparent;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 8px;
+}
+input[type="color"]::-moz-color-swatch {
+  border: none;
+  border-radius: 8px;
+}
