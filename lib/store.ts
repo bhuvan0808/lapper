@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  DEFAULT_LOGO,
   DEFAULT_OVERLAY,
   IMAGE_EXPORT_PRESETS,
 } from "@/lib/constants";
@@ -41,7 +42,7 @@ const IDLE_EXPORT: ExportState = {
 
 export const useLapperStore = create<LapperState>((set, get) => ({
   media: null,
-  logo: null,
+  logo: { ...DEFAULT_LOGO },
   overlay: { ...DEFAULT_OVERLAY },
   imagePresetId: IMAGE_EXPORT_PRESETS[0].id,
   exportState: { ...IDLE_EXPORT },

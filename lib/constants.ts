@@ -1,6 +1,7 @@
 import type {
   FontWeight,
   ImageExportPreset,
+  LogoAsset,
   OverlaySettings,
 } from "@/lib/types";
 
@@ -44,6 +45,17 @@ export const ACCEPT_ATTRIBUTE = [
 
 /** Largest video we promise to handle smoothly. */
 export const MAX_VIDEO_DURATION_SECONDS = 60;
+
+/**
+ * Built-in default brand logo (served from /public). Shown in the top-right of
+ * every export until the user replaces or removes it. The intrinsic dimensions
+ * are a hint only — the real aspect ratio is read from the loaded image.
+ */
+export const DEFAULT_LOGO: LogoAsset = {
+  src: "/bcm10-news-logo.jpg",
+  width: 477,
+  height: 342,
+};
 
 export const DEFAULT_OVERLAY: OverlaySettings = {
   kicker: "BREAKING NEWS",
