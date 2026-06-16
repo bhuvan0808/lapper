@@ -6,7 +6,7 @@ import {
   getFontFamily,
   type OverlayGeometry,
 } from "@/lib/overlay-layout";
-import type { OverlaySettings } from "@/lib/types";
+import type { LogoAsset, OverlaySettings } from "@/lib/types";
 
 export type VideoFormat = "mp4" | "webm";
 
@@ -18,7 +18,18 @@ export interface VideoExportOptions {
   settings: OverlaySettings;
   format: VideoFormat;
   durationSeconds: number;
+  logo?: LogoAsset | null;
   onPhase?: (phase: "rendering" | "encoding", progress: number) => void;
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Could not load the logo."));
+    img.src = src;
+  });
 }
 
 /**
@@ -30,7 +41,8 @@ function drawFrame(
   video: HTMLVideoElement,
   geometry: OverlayGeometry,
   width: number,
-  height: number
+  height: number,
+  logoImage: HTMLImageElement | null
 ): void {
   ctx.fillStyle = LETTERBOX_FILL;
   ctx.fillRect(0, 0, width, height);
@@ -54,7 +66,7 @@ function drawFrame(
     ctx.drawImage(video, dx, dy, dw, dh);
   }
 
-  drawOverlayToCanvas(ctx, geometry);
+  drawOverlayToCanvas(ctx, geometry, logoImage);
 }
 
 /** Pick the best MediaRecorder container the browser supports for `format`. */
@@ -94,6 +106,7 @@ export async function exportVideo({
   settings,
   format,
   durationSeconds,
+  logo,
   onPhase,
 }: VideoExportOptions): Promise<{ blob: Blob; extension: VideoFormat }> {
   if (typeof MediaRecorder === "undefined") {
@@ -111,11 +124,16 @@ export async function exportVideo({
   const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Could not create a drawing context.");
 
+  const logoImage = logo ? await loadImage(logo.src) : null;
+
   const geometry = computeOverlayLayout({
     targetWidth: width,
     targetHeight: height,
     settings,
     fontFamily: getFontFamily(),
+    logo: logoImage
+      ? { width: logoImage.width, height: logoImage.height }
+      : null,
   });
 
   // Hidden source video.
@@ -182,7 +200,7 @@ export async function exportVideo({
 
     const tick = () => {
       if (stopped) return;
-      drawFrame(ctx, video, geometry, width, height);
+      drawFrame(ctx, video, geometry, width, height, logoImage);
       const progress = Math.min(1, video.currentTime / maxDuration);
       onPhase?.("rendering", progress);
 

@@ -5,6 +5,7 @@ import {
 } from "@/lib/constants";
 import type {
   ExportState,
+  LogoAsset,
   MediaAsset,
   OverlaySettings,
 } from "@/lib/types";
@@ -12,6 +13,8 @@ import type {
 interface LapperState {
   /** The current image/video, or null before anything is uploaded. */
   media: MediaAsset | null;
+  /** Optional brand logo (data URL) rendered in the top-right corner. */
+  logo: LogoAsset | null;
   /** Live overlay settings — shared by the preview and the export pipeline. */
   overlay: OverlaySettings;
   /** Selected image export preset id (one of IMAGE_EXPORT_PRESETS). */
@@ -21,6 +24,8 @@ interface LapperState {
 
   setMedia: (media: MediaAsset) => void;
   clearMedia: () => void;
+  setLogo: (logo: LogoAsset) => void;
+  clearLogo: () => void;
   setOverlay: (patch: Partial<OverlaySettings>) => void;
   resetOverlay: () => void;
   setImagePresetId: (id: string) => void;
@@ -36,6 +41,7 @@ const IDLE_EXPORT: ExportState = {
 
 export const useLapperStore = create<LapperState>((set, get) => ({
   media: null,
+  logo: null,
   overlay: { ...DEFAULT_OVERLAY },
   imagePresetId: IMAGE_EXPORT_PRESETS[0].id,
   exportState: { ...IDLE_EXPORT },
@@ -54,6 +60,10 @@ export const useLapperStore = create<LapperState>((set, get) => ({
     if (previous) URL.revokeObjectURL(previous.url);
     set({ media: null, exportState: { ...IDLE_EXPORT } });
   },
+
+  // Logo is stored as a data URL (no object URL to revoke).
+  setLogo: (logo) => set({ logo }),
+  clearLogo: () => set({ logo: null }),
 
   setOverlay: (patch) =>
     set((state) => ({ overlay: { ...state.overlay, ...patch } })),

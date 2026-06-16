@@ -48,6 +48,7 @@ export const MAX_VIDEO_DURATION_SECONDS = 60;
 export const DEFAULT_OVERLAY: OverlaySettings = {
   kicker: "BREAKING NEWS",
   headline: "Your headline goes here",
+  body: "",
   position: "bottom",
   textColor: "#FFFFFF",
   bannerColor: "#2C2C2C",
@@ -56,6 +57,8 @@ export const DEFAULT_OVERLAY: OverlaySettings = {
   fontWeight: 700,
   borderRadius: 16,
   showKicker: true,
+  showLogo: true,
+  logoScale: 0.16,
 };
 
 export const FONT_WEIGHT_OPTIONS: { value: FontWeight; label: string }[] = [
@@ -104,3 +107,5 @@ export const VIDEO_EXPORT = {
 /** Font size slider bounds (px at design width). */
 export const FONT_SIZE_RANGE = { min: 24, max: 120, step: 1 } as const;
 export const BORDER_RADIUS_RANGE = { min: 0, max: 48, step: 1 } as const;
+/** Logo size slider bounds (fraction of frame width). */
+export const LOGO_SCALE_RANGE = { min: 0.08, max: 0.32, step: 0.005 } as const;

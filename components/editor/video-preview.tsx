@@ -5,6 +5,7 @@ import { Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 
 import { useElementSize } from "@/hooks/use-element-size";
 import { useFontsReady } from "@/hooks/use-fonts-ready";
+import { useHtmlImage } from "@/hooks/use-html-image";
 import { VIDEO_EXPORT } from "@/lib/constants";
 import {
   computeOverlayLayout,
@@ -25,7 +26,9 @@ const ASPECT = VIDEO_EXPORT.width / VIDEO_EXPORT.height; // 16:9
 export function VideoPreview() {
   const media = useLapperStore((s) => s.media);
   const overlay = useLapperStore((s) => s.overlay);
+  const logo = useLapperStore((s) => s.logo);
   const fontsReady = useFontsReady();
+  const { image: logoImage } = useHtmlImage(logo?.src);
 
   const [containerRef, size] = useElementSize<HTMLDivElement>();
   const videoRef = React.useRef<HTMLVideoElement>(null);
@@ -87,9 +90,12 @@ export function VideoPreview() {
       targetHeight: H,
       settings: overlay,
       fontFamily: family,
+      logo: logoImage
+        ? { width: logoImage.width, height: logoImage.height }
+        : null,
     });
-    drawOverlayToCanvas(ctx, geometry);
-  }, [stage.width, stage.height, overlay, family]);
+    drawOverlayToCanvas(ctx, geometry, logoImage ?? null);
+  }, [stage.width, stage.height, overlay, family, logoImage]);
 
   // Animation loop while playing.
   React.useEffect(() => {

@@ -53,6 +53,21 @@ export interface OverlayGeometry {
     lineHeight: number;
     lines: PositionedLine[];
   };
+  /** Optional supporting paragraph beneath the headline. */
+  body: {
+    font: string;
+    color: string;
+    fontSize: number;
+    lineHeight: number;
+    lines: PositionedLine[];
+  } | null;
+  /** Optional brand logo placed in the top-right corner. */
+  logo: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
 }
 
 // Spacing constants expressed at the 1080px design width.
@@ -64,6 +79,11 @@ const KICKER_PAD_X = 14;
 const KICKER_PAD_Y = 7;
 const LINE_HEIGHT_RATIO = 1.14;
 const KICKER_LETTER_SPACING = 2;
+const BODY_GAP = 18;
+const BODY_LINE_HEIGHT_RATIO = 1.32;
+const BODY_FONT_RATIO = 0.44;
+const BODY_MIN_FONT = 22;
+const BODY_COLOR_OPACITY = 0.85;
 
 let sharedCtx: CanvasRenderingContext2D | null = null;
 
@@ -116,6 +136,8 @@ export interface ComputeOverlayOptions {
   settings: OverlaySettings;
   measure?: MeasureText;
   fontFamily?: string;
+  /** Intrinsic logo dimensions, if a logo is present. */
+  logo?: { width: number; height: number } | null;
 }
 
 export function computeOverlayLayout({
@@ -124,6 +146,7 @@ export function computeOverlayLayout({
   settings,
   measure = defaultMeasureText,
   fontFamily,
+  logo,
 }: ComputeOverlayOptions): OverlayGeometry {
   const scale = targetWidth / DESIGN_WIDTH;
   const family = fontFamily ?? getFontFamily();
@@ -150,6 +173,24 @@ export function computeOverlayLayout({
   );
   const headlineBlockHeight = wrapped.length * lineHeight;
 
+  // Body (optional supporting paragraph)
+  const showBody = settings.body.trim().length > 0;
+  let bodyFontSize = 0;
+  let bodyFont = "";
+  let bodyLineHeight = 0;
+  let bodyWrapped: string[] = [];
+  let bodyBlockHeight = 0;
+  if (showBody) {
+    bodyFontSize = Math.max(
+      headlineFontSize * BODY_FONT_RATIO,
+      BODY_MIN_FONT * scale
+    );
+    bodyFont = `400 ${bodyFontSize}px ${family}`;
+    bodyLineHeight = bodyFontSize * BODY_LINE_HEIGHT_RATIO;
+    bodyWrapped = wrapText(settings.body, contentWidth, bodyFont, measure);
+    bodyBlockHeight = BODY_GAP * scale + bodyWrapped.length * bodyLineHeight;
+  }
+
   // Kicker (fixed brand styling: stone bar, white uppercase text)
   const showKicker = settings.showKicker && settings.kicker.trim().length > 0;
   let kickerBlockHeight = 0;
@@ -171,7 +212,8 @@ export function computeOverlayLayout({
     kickerBlockHeight = kickerBarHeight + KICKER_GAP * scale;
   }
 
-  const bannerHeight = padY * 2 + kickerBlockHeight + headlineBlockHeight;
+  const bannerHeight =
+    padY * 2 + kickerBlockHeight + headlineBlockHeight + bodyBlockHeight;
   const bannerY =
     settings.position === "top"
       ? gutter
@@ -205,6 +247,41 @@ export function computeOverlayLayout({
     y: cursorY + i * lineHeight,
   }));
 
+  // Body sits a gap below the headline block.
+  let body: OverlayGeometry["body"] = null;
+  if (showBody) {
+    const bodyTop = cursorY + headlineBlockHeight + BODY_GAP * scale;
+    body = {
+      font: bodyFont,
+      color: hexToRgba(settings.textColor, BODY_COLOR_OPACITY),
+      fontSize: bodyFontSize,
+      lineHeight: bodyLineHeight,
+      lines: bodyWrapped.map((text, i) => ({
+        text,
+        x: contentX,
+        y: bodyTop + i * bodyLineHeight,
+      })),
+    };
+  }
+
+  // Logo, top-right, inset by the same gutter as the banner.
+  let logoGeometry: OverlayGeometry["logo"] = null;
+  if (settings.showLogo && logo && logo.width > 0 && logo.height > 0) {
+    let logoWidth = targetWidth * settings.logoScale;
+    let logoHeight = logoWidth * (logo.height / logo.width);
+    const maxLogoHeight = targetHeight * 0.22;
+    if (logoHeight > maxLogoHeight) {
+      logoHeight = maxLogoHeight;
+      logoWidth = logoHeight * (logo.width / logo.height);
+    }
+    logoGeometry = {
+      x: targetWidth - gutter - logoWidth,
+      y: gutter,
+      width: logoWidth,
+      height: logoHeight,
+    };
+  }
+
   return {
     fontFamily: family,
     scale,
@@ -224,6 +301,8 @@ export function computeOverlayLayout({
       lineHeight,
       lines,
     },
+    body,
+    logo: logoGeometry,
   };
 }
 
@@ -233,9 +312,10 @@ export function computeOverlayLayout({
  */
 export function drawOverlayToCanvas(
   ctx: CanvasRenderingContext2D,
-  geometry: OverlayGeometry
+  geometry: OverlayGeometry,
+  logoImage?: CanvasImageSource | null
 ): void {
-  const { banner, kicker, headline } = geometry;
+  const { banner, kicker, headline, body, logo } = geometry;
 
   // Banner background
   ctx.save();
@@ -277,6 +357,29 @@ export function drawOverlayToCanvas(
     ctx.fillText(line.text, line.x, line.y);
   }
   ctx.restore();
+
+  // Body paragraph
+  if (body) {
+    ctx.save();
+    ctx.fillStyle = body.color;
+    ctx.font = body.font;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    for (const line of body.lines) {
+      ctx.fillText(line.text, line.x, line.y);
+    }
+    ctx.restore();
+  }
+
+  // Brand logo (top-right) with a soft shadow for legibility on busy media.
+  if (logo && logoImage) {
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.22)";
+    ctx.shadowBlur = logo.width * 0.05;
+    ctx.shadowOffsetY = logo.width * 0.012;
+    ctx.drawImage(logoImage, logo.x, logo.y, logo.width, logo.height);
+    ctx.restore();
+  }
 }
 
 function applyLetterSpacing(ctx: CanvasRenderingContext2D, spacing: number) {

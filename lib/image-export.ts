@@ -4,7 +4,7 @@ import {
   computeOverlayLayout,
   getFontFamily,
 } from "@/lib/overlay-layout";
-import type { OverlaySettings } from "@/lib/types";
+import type { LogoAsset, OverlaySettings } from "@/lib/types";
 
 const BACKDROP_FILL = "#15120E";
 
@@ -14,6 +14,7 @@ export interface ImageExportOptions {
   width: number;
   height: number;
   pixelRatio?: number;
+  logo?: LogoAsset | null;
 }
 
 /** Compute a "cover" rectangle (fill target, crop overflow, centered). */
@@ -50,9 +51,11 @@ export async function exportImage({
   width,
   height,
   pixelRatio = IMAGE_EXPORT_PIXEL_RATIO,
+  logo,
 }: ImageExportOptions): Promise<Blob> {
   await document.fonts.ready;
   const image = await loadImage(imageUrl);
+  const logoImage = logo ? await loadImage(logo.src) : null;
 
   // Off-screen container, kept out of the layout flow.
   const container = document.createElement("div");
@@ -88,9 +91,12 @@ export async function exportImage({
       targetHeight: height,
       settings,
       fontFamily: getFontFamily(),
+      logo: logoImage
+        ? { width: logoImage.width, height: logoImage.height }
+        : null,
     });
 
-    const { banner, kicker, headline } = geometry;
+    const { banner, kicker, headline, body, logo: logoRect } = geometry;
 
     layer.add(
       new Konva.Rect({
@@ -138,6 +144,38 @@ export async function exportImage({
           fontSize: headline.fontSize,
           fontStyle: String(settings.fontWeight),
           fill: headline.color,
+        })
+      );
+    }
+
+    if (body) {
+      for (const line of body.lines) {
+        layer.add(
+          new Konva.Text({
+            x: line.x,
+            y: line.y,
+            text: line.text,
+            fontFamily: geometry.fontFamily,
+            fontSize: body.fontSize,
+            fontStyle: "400",
+            fill: body.color,
+          })
+        );
+      }
+    }
+
+    if (logoRect && logoImage) {
+      layer.add(
+        new Konva.Image({
+          image: logoImage,
+          x: logoRect.x,
+          y: logoRect.y,
+          width: logoRect.width,
+          height: logoRect.height,
+          shadowColor: "#000000",
+          shadowBlur: logoRect.width * 0.05,
+          shadowOpacity: 0.22,
+          shadowOffsetY: logoRect.width * 0.012,
         })
       );
     }

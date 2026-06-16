@@ -7,6 +7,8 @@ news-style lower-third overlay, fine-tune it live, and download a high-quality f
 
 - 🖼️ Images → crisp **PNG** at 1080×1080, 1080×1350, or 1080×1920 (4× pixel ratio)
 - 🎬 Videos → **MP4 / WebM** at 1920×1080, 30fps, with sound
+- 🏷️ **Brand logo** pinned to the top-right corner of every export (upload any PNG/JPG/SVG/WEBP)
+- 📝 **Headline + supporting paragraph** for richer, detailed lower-thirds
 - 🔒 **100% client-side** — no login, no backend, no uploads. Your media never leaves your device.
 
 ---

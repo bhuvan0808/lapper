@@ -27,6 +27,7 @@ const VIDEO_FORMATS: { value: VideoFormat; label: string; note: string }[] = [
 export function ExportBar() {
   const media = useLapperStore((s) => s.media);
   const overlay = useLapperStore((s) => s.overlay);
+  const logo = useLapperStore((s) => s.logo);
   const imagePresetId = useLapperStore((s) => s.imagePresetId);
   const setImagePresetId = useLapperStore((s) => s.setImagePresetId);
   const exportState = useLapperStore((s) => s.exportState);
@@ -60,6 +61,7 @@ export function ExportBar() {
         settings: overlay,
         width: preset.width,
         height: preset.height,
+        logo,
       });
       downloadBlob(blob, exportFileName(media.name, "png"));
       setExportState({
@@ -91,6 +93,7 @@ export function ExportBar() {
         settings: overlay,
         format: videoFormat,
         durationSeconds: media.duration,
+        logo,
         onPhase: (phase, progress) => {
           const pct = Math.round(progress * 100);
           setExportState({

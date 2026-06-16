@@ -20,12 +20,22 @@ export type OverlayPosition = "top" | "bottom";
 
 export type FontWeight = 400 | 500 | 600 | 700 | 800;
 
+/** A user-supplied brand logo, stored as a data URL so it survives reloads. */
+export interface LogoAsset {
+  /** Base64 data URL of the logo image. */
+  src: string;
+  width: number;
+  height: number;
+}
+
 /** Everything the user can tweak about the lower-third overlay. */
 export interface OverlaySettings {
   /** Small kicker / category line, e.g. "BREAKING NEWS". */
   kicker: string;
   /** Main headline shown in the banner body. */
   headline: string;
+  /** Optional supporting paragraph shown beneath the headline. */
+  body: string;
   position: OverlayPosition;
   textColor: string;
   bannerColor: string;
@@ -38,6 +48,10 @@ export interface OverlaySettings {
   borderRadius: number;
   /** Whether to show the accent kicker bar above the headline. */
   showKicker: boolean;
+  /** Whether to show the brand logo in the top-right corner. */
+  showLogo: boolean;
+  /** Logo width as a fraction of the frame width (e.g. 0.16 = 16%). */
+  logoScale: number;
 }
 
 export interface ImageExportPreset {

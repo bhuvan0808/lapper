@@ -5,6 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import {
   AlignVerticalJustifyStart,
   AlignVerticalJustifyEnd,
+  BadgeCheck,
   Palette,
   RotateCcw,
   Type,
@@ -12,8 +13,10 @@ import {
 
 import { ColorField } from "@/components/editor/color-field";
 import { ControlSection } from "@/components/editor/control-section";
+import { LogoField } from "@/components/editor/logo-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -28,6 +31,7 @@ import {
   DEFAULT_OVERLAY,
   FONT_SIZE_RANGE,
   FONT_WEIGHT_OPTIONS,
+  LOGO_SCALE_RANGE,
 } from "@/lib/constants";
 import { useLapperStore } from "@/lib/store";
 import type { FontWeight, OverlayPosition, OverlaySettings } from "@/lib/types";
@@ -44,6 +48,7 @@ const POSITION_OPTIONS: {
 
 export function ControlsPanel() {
   const setOverlay = useLapperStore((s) => s.setOverlay);
+  const logo = useLapperStore((s) => s.logo);
 
   // RHF owns the form; defaults come from the store's current overlay.
   const initialValues = React.useRef(
@@ -97,6 +102,17 @@ export function ControlsPanel() {
             placeholder="Your headline goes here"
             maxLength={120}
             {...register("headline")}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="body">Details (optional)</Label>
+          <Textarea
+            id="body"
+            placeholder="Add supporting text shown beneath the headline…"
+            rows={4}
+            maxLength={400}
+            {...register("body")}
           />
         </div>
 
@@ -308,6 +324,59 @@ export function ControlsPanel() {
             />
           )}
         />
+      </ControlSection>
+
+      {/* Branding */}
+      <ControlSection
+        title="Branding"
+        description="Your logo, top-right"
+        icon={<BadgeCheck />}
+      >
+        <LogoField />
+
+        {logo && (
+          <>
+            <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-secondary/30 px-4 py-3">
+              <div>
+                <Label htmlFor="showLogo" className="cursor-pointer">
+                  Show logo
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Display it on the export
+                </p>
+              </div>
+              <Controller
+                control={control}
+                name="showLogo"
+                render={({ field }) => (
+                  <Switch
+                    id="showLogo"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    aria-label="Toggle logo"
+                  />
+                )}
+              />
+            </div>
+
+            <Controller
+              control={control}
+              name="logoScale"
+              render={({ field }) => (
+                <SliderRow
+                  id="logoScale"
+                  label="Logo size"
+                  display={`${Math.round(field.value * 100)}%`}
+                  min={LOGO_SCALE_RANGE.min}
+                  max={LOGO_SCALE_RANGE.max}
+                  step={LOGO_SCALE_RANGE.step}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                />
+              )}
+            />
+          </>
+        )}
       </ControlSection>
     </form>
   );

@@ -28,11 +28,13 @@ function coverRect(srcW: number, srcH: number, dstW: number, dstH: number) {
 export function ImagePreview() {
   const media = useLapperStore((s) => s.media);
   const overlay = useLapperStore((s) => s.overlay);
+  const logo = useLapperStore((s) => s.logo);
   const imagePresetId = useLapperStore((s) => s.imagePresetId);
   const fontsReady = useFontsReady();
 
   const [containerRef, size] = useElementSize<HTMLDivElement>();
   const { image, status } = useHtmlImage(media?.url);
+  const { image: logoImage } = useHtmlImage(logo?.src);
 
   const preset =
     IMAGE_EXPORT_PRESETS.find((p) => p.id === imagePresetId) ??
@@ -62,8 +64,11 @@ export function ImagePreview() {
       targetHeight: stage.height,
       settings: overlay,
       fontFamily: family,
+      logo: logoImage
+        ? { width: logoImage.width, height: logoImage.height }
+        : null,
     });
-  }, [stage.width, stage.height, overlay, family]);
+  }, [stage.width, stage.height, overlay, family, logoImage]);
 
   const cover = image
     ? coverRect(image.width, image.height, stage.width, stage.height)
@@ -145,6 +150,33 @@ export function ImagePreview() {
                   fill={geometry.headline.color}
                 />
               ))}
+
+              {geometry.body?.lines.map((line, i) => (
+                <Text
+                  key={`body-${i}`}
+                  x={line.x}
+                  y={line.y}
+                  text={line.text}
+                  fontFamily={geometry.fontFamily}
+                  fontSize={geometry.body!.fontSize}
+                  fontStyle="400"
+                  fill={geometry.body!.color}
+                />
+              ))}
+
+              {geometry.logo && logoImage && (
+                <KonvaImage
+                  image={logoImage}
+                  x={geometry.logo.x}
+                  y={geometry.logo.y}
+                  width={geometry.logo.width}
+                  height={geometry.logo.height}
+                  shadowColor="#000000"
+                  shadowBlur={geometry.logo.width * 0.05}
+                  shadowOpacity={0.22}
+                  shadowOffsetY={geometry.logo.width * 0.012}
+                />
+              )}
             </Layer>
           </Stage>
         </div>
