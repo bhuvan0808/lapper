@@ -12,6 +12,7 @@ news-style lower-third overlay, fine-tune it live, and download a high-quality f
 - 📰 **Article layout** — photo on top, a text panel below that **auto-grows to fit long news** (20+ lines)
 - 🌐 **Telugu + English** rendering (Noto Sans Telugu with per-glyph fallback)
 - 🔊 **Audio control** — mute or set the video's volume; baked into the export via the Web Audio API
+- 🎙️ **Mic voiceover** — record narration from your device microphone, hear it in the preview, and mix it into the exported video
 - 🔒 **100% client-side** — no login, no backend, no uploads. Your media never leaves your device.
 
 ---

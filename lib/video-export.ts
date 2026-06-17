@@ -19,6 +19,8 @@ export interface VideoExportOptions {
   format: VideoFormat;
   durationSeconds: number;
   logo?: LogoAsset | null;
+  /** Object URL of a recorded mic voiceover to mix into the export. */
+  voiceoverUrl?: string | null;
   onPhase?: (phase: "rendering" | "encoding", progress: number) => void;
 }
 
@@ -107,6 +109,7 @@ export async function exportVideo({
   format,
   durationSeconds,
   logo,
+  voiceoverUrl,
   onPhase,
 }: VideoExportOptions): Promise<{ blob: Blob; extension: VideoFormat }> {
   if (typeof MediaRecorder === "undefined") {
@@ -167,8 +170,12 @@ export async function exportVideo({
     webkitAudioContext?: typeof AudioContext;
   };
 
+  const wantVideoAudio = !settings.muteAudio;
+  const hasVoiceover = !!voiceoverUrl;
   let audioContext: AudioContext | null = null;
-  if (!settings.muteAudio) {
+  let voiceoverEl: HTMLAudioElement | null = null;
+
+  if (wantVideoAudio || hasVoiceover) {
     try {
       const Ctor =
         window.AudioContext ||
@@ -176,23 +183,51 @@ export async function exportVideo({
       if (!Ctor) throw new Error("no AudioContext");
       audioContext = new Ctor();
       await audioContext.resume();
-      const sourceNode = audioContext.createMediaElementSource(video);
-      const gainNode = audioContext.createGain();
-      gainNode.gain.value = Math.max(0, settings.volume);
       const destination = audioContext.createMediaStreamDestination();
-      sourceNode.connect(gainNode);
-      gainNode.connect(destination);
+
+      // Original video audio at the chosen volume.
+      if (wantVideoAudio) {
+        const videoSource = audioContext.createMediaElementSource(video);
+        const videoGain = audioContext.createGain();
+        videoGain.gain.value = Math.max(0, settings.volume);
+        videoSource.connect(videoGain);
+        videoGain.connect(destination);
+      }
+
+      // Mic voiceover mixed on top at its own volume.
+      if (hasVoiceover) {
+        voiceoverEl = new Audio();
+        voiceoverEl.src = voiceoverUrl as string;
+        voiceoverEl.crossOrigin = "anonymous";
+        await new Promise<void>((resolve) => {
+          voiceoverEl!.onloadeddata = () => resolve();
+          voiceoverEl!.onerror = () => resolve();
+        });
+        const voSource = audioContext.createMediaElementSource(voiceoverEl);
+        const voGain = audioContext.createGain();
+        voGain.gain.value = Math.max(0, settings.voiceoverVolume);
+        voSource.connect(voGain);
+        voGain.connect(destination);
+      }
+
       destination.stream
         .getAudioTracks()
         .forEach((track) => stream.addTrack(track));
     } catch {
-      // Fallback: capture the element's audio directly (no volume control).
-      try {
-        const capt = video as Capturable;
-        const sourceStream = capt.captureStream?.() ?? capt.mozCaptureStream?.();
-        sourceStream?.getAudioTracks().forEach((track) => stream.addTrack(track));
-      } catch {
-        /* Silent export still succeeds. */
+      // Fallback: capture the element's audio directly (no mixing/volume).
+      audioContext = null;
+      voiceoverEl = null;
+      if (wantVideoAudio) {
+        try {
+          const capt = video as Capturable;
+          const sourceStream =
+            capt.captureStream?.() ?? capt.mozCaptureStream?.();
+          sourceStream
+            ?.getAudioTracks()
+            .forEach((track) => stream.addTrack(track));
+        } catch {
+          /* Silent export still succeeds. */
+        }
       }
     }
   }
@@ -216,6 +251,14 @@ export async function exportVideo({
   recorder.start(100);
   video.currentTime = 0;
   await video.play();
+  if (voiceoverEl) {
+    try {
+      voiceoverEl.currentTime = 0;
+      await voiceoverEl.play();
+    } catch {
+      /* voiceover playback is best-effort */
+    }
+  }
 
   await new Promise<void>((resolve) => {
     let stopped = false;
@@ -223,6 +266,7 @@ export async function exportVideo({
       if (stopped) return;
       stopped = true;
       video.pause();
+      voiceoverEl?.pause();
       if (recorder.state !== "inactive") recorder.stop();
       resolve();
     };

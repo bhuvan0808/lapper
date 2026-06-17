@@ -28,6 +28,7 @@ export function ExportBar() {
   const media = useLapperStore((s) => s.media);
   const overlay = useLapperStore((s) => s.overlay);
   const logo = useLapperStore((s) => s.logo);
+  const voiceover = useLapperStore((s) => s.voiceover);
   const imagePresetId = useLapperStore((s) => s.imagePresetId);
   const setImagePresetId = useLapperStore((s) => s.setImagePresetId);
   const exportState = useLapperStore((s) => s.exportState);
@@ -95,6 +96,7 @@ export function ExportBar() {
         format: videoFormat,
         durationSeconds: media.duration,
         logo,
+        voiceoverUrl: voiceover?.url ?? null,
         onPhase: (phase, progress) => {
           const pct = Math.round(progress * 100);
           setExportState({

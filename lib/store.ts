@@ -9,6 +9,7 @@ import type {
   LogoAsset,
   MediaAsset,
   OverlaySettings,
+  VoiceoverAsset,
 } from "@/lib/types";
 
 interface LapperState {
@@ -16,6 +17,8 @@ interface LapperState {
   media: MediaAsset | null;
   /** Optional brand logo (data URL) rendered in the top-right corner. */
   logo: LogoAsset | null;
+  /** Optional mic voiceover recorded in the browser. */
+  voiceover: VoiceoverAsset | null;
   /** Live overlay settings — shared by the preview and the export pipeline. */
   overlay: OverlaySettings;
   /** Selected image export preset id (one of IMAGE_EXPORT_PRESETS). */
@@ -27,6 +30,8 @@ interface LapperState {
   clearMedia: () => void;
   setLogo: (logo: LogoAsset) => void;
   clearLogo: () => void;
+  setVoiceover: (voiceover: VoiceoverAsset) => void;
+  clearVoiceover: () => void;
   setOverlay: (patch: Partial<OverlaySettings>) => void;
   resetOverlay: () => void;
   setImagePresetId: (id: string) => void;
@@ -43,6 +48,7 @@ const IDLE_EXPORT: ExportState = {
 export const useLapperStore = create<LapperState>((set, get) => ({
   media: null,
   logo: { ...DEFAULT_LOGO },
+  voiceover: null,
   overlay: { ...DEFAULT_OVERLAY },
   imagePresetId: IMAGE_EXPORT_PRESETS[0].id,
   exportState: { ...IDLE_EXPORT },
@@ -59,12 +65,27 @@ export const useLapperStore = create<LapperState>((set, get) => ({
   clearMedia: () => {
     const previous = get().media;
     if (previous) URL.revokeObjectURL(previous.url);
-    set({ media: null, exportState: { ...IDLE_EXPORT } });
+    const voiceover = get().voiceover;
+    if (voiceover) URL.revokeObjectURL(voiceover.url);
+    set({ media: null, voiceover: null, exportState: { ...IDLE_EXPORT } });
   },
 
   // Logo is stored as a data URL (no object URL to revoke).
   setLogo: (logo) => set({ logo }),
   clearLogo: () => set({ logo: null }),
+
+  setVoiceover: (voiceover) => {
+    const previous = get().voiceover;
+    if (previous && previous.url !== voiceover.url) {
+      URL.revokeObjectURL(previous.url);
+    }
+    set({ voiceover });
+  },
+  clearVoiceover: () => {
+    const previous = get().voiceover;
+    if (previous) URL.revokeObjectURL(previous.url);
+    set({ voiceover: null });
+  },
 
   setOverlay: (patch) =>
     set((state) => ({ overlay: { ...state.overlay, ...patch } })),

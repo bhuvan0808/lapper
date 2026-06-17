@@ -27,6 +27,7 @@ export function VideoPreview() {
   const media = useLapperStore((s) => s.media);
   const overlay = useLapperStore((s) => s.overlay);
   const logo = useLapperStore((s) => s.logo);
+  const voiceover = useLapperStore((s) => s.voiceover);
   const setOverlay = useLapperStore((s) => s.setOverlay);
   const fontsReady = useFontsReady();
   const { image: logoImage } = useHtmlImage(logo?.src);
@@ -34,6 +35,7 @@ export function VideoPreview() {
   const [containerRef, size] = useElementSize<HTMLDivElement>();
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const voiceoverRef = React.useRef<HTMLAudioElement>(null);
 
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState(0);
@@ -119,19 +121,28 @@ export function VideoPreview() {
   // Keep the preview's audio in sync with the mute / volume settings.
   React.useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
-    video.muted = overlay.muteAudio;
-    video.volume = Math.min(1, Math.max(0, overlay.volume));
-  }, [overlay.muteAudio, overlay.volume]);
+    if (video) {
+      video.muted = overlay.muteAudio;
+      video.volume = Math.min(1, Math.max(0, overlay.volume));
+    }
+    const vo = voiceoverRef.current;
+    if (vo) vo.volume = Math.min(1, Math.max(0, overlay.voiceoverVolume));
+  }, [overlay.muteAudio, overlay.volume, overlay.voiceoverVolume, voiceover]);
 
   const togglePlay = () => {
     const video = videoRef.current;
     if (!video) return;
+    const vo = voiceoverRef.current;
     if (video.paused) {
+      if (vo) {
+        vo.currentTime = video.currentTime;
+        void vo.play().catch(() => {});
+      }
       void video.play();
       setIsPlaying(true);
     } else {
       video.pause();
+      vo?.pause();
       setIsPlaying(false);
     }
   };
@@ -141,6 +152,11 @@ export function VideoPreview() {
     if (!video) return;
     video.currentTime = 0;
     setCurrentTime(0);
+    const vo = voiceoverRef.current;
+    if (vo) {
+      vo.currentTime = 0;
+      if (!video.paused) void vo.play().catch(() => {});
+    }
     draw();
   };
 
@@ -149,6 +165,8 @@ export function VideoPreview() {
     if (!video) return;
     video.currentTime = value;
     setCurrentTime(value);
+    const vo = voiceoverRef.current;
+    if (vo) vo.currentTime = value;
     if (video.paused) requestAnimationFrame(draw);
   };
 
@@ -236,7 +254,7 @@ export function VideoPreview() {
       <video
         ref={videoRef}
         src={media?.url}
-        loop
+        loop={!voiceover}
         playsInline
         preload="auto"
         className="pointer-events-none absolute h-px w-px opacity-0"
@@ -246,8 +264,22 @@ export function VideoPreview() {
         }}
         onLoadedData={() => requestAnimationFrame(draw)}
         onSeeked={() => requestAnimationFrame(draw)}
-        onEnded={() => setIsPlaying(false)}
+        onEnded={() => {
+          setIsPlaying(false);
+          voiceoverRef.current?.pause();
+        }}
       />
+
+      {/* Hidden voiceover track, synced with the video during preview. */}
+      {voiceover && (
+        // eslint-disable-next-line jsx-a11y/media-has-caption
+        <audio
+          ref={voiceoverRef}
+          src={voiceover.url}
+          preload="auto"
+          className="hidden"
+        />
+      )}
     </div>
   );
 }

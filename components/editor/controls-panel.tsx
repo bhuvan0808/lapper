@@ -17,6 +17,7 @@ import {
 import { ColorField } from "@/components/editor/color-field";
 import { ControlSection } from "@/components/editor/control-section";
 import { LogoField } from "@/components/editor/logo-field";
+import { VoiceoverRecorder } from "@/components/editor/voiceover-recorder";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -73,6 +74,7 @@ const LAYOUT_OPTIONS: {
 export function ControlsPanel() {
   const setOverlay = useLapperStore((s) => s.setOverlay);
   const logo = useLapperStore((s) => s.logo);
+  const voiceover = useLapperStore((s) => s.voiceover);
   const isVideo = useLapperStore((s) => s.media?.kind === "video");
 
   // RHF owns the form; defaults come from the store's current overlay.
@@ -541,6 +543,34 @@ export function ControlsPanel() {
               />
             )}
           />
+
+          <div className="space-y-3 border-t border-border pt-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">Voiceover</p>
+              <p className="text-xs text-muted-foreground">
+                Record narration from your device mic
+              </p>
+            </div>
+            <VoiceoverRecorder />
+            {voiceover && (
+              <Controller
+                control={control}
+                name="voiceoverVolume"
+                render={({ field }) => (
+                  <SliderRow
+                    id="voiceoverVolume"
+                    label="Voiceover volume"
+                    display={`${Math.round(field.value * 100)}%`}
+                    min={VOLUME_RANGE.min}
+                    max={VOLUME_RANGE.max}
+                    step={VOLUME_RANGE.step}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  />
+                )}
+              />
+            )}
+          </div>
         </ControlSection>
       )}
     </form>

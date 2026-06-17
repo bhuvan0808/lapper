@@ -31,6 +31,13 @@ export interface LogoAsset {
   height: number;
 }
 
+/** A microphone voiceover recorded in the browser (object URL of the blob). */
+export interface VoiceoverAsset {
+  url: string;
+  duration: number;
+  mimeType: string;
+}
+
 /** Everything the user can tweak about the lower-third overlay. */
 export interface OverlaySettings {
   /** Overlay banner vs. stacked article card. */
@@ -61,6 +68,8 @@ export interface OverlaySettings {
   muteAudio: boolean;
   /** Playback/export volume for the source video, 0–1 (video only). */
   volume: number;
+  /** Volume for the recorded mic voiceover, 0–1 (video only). */
+  voiceoverVolume: number;
 }
 
 export interface ImageExportPreset {

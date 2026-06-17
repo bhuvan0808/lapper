@@ -74,6 +74,7 @@ export const DEFAULT_OVERLAY: OverlaySettings = {
   logoScale: 0.16,
   muteAudio: false,
   volume: 1,
+  voiceoverVolume: 1,
 };
 
 export const FONT_WEIGHT_OPTIONS: { value: FontWeight; label: string }[] = [
