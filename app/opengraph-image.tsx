@@ -47,6 +47,9 @@ export default function OpenGraphImage() {
             L
           </div>
           LAPPER
+          <span style={{ color: "#7A7A7A", fontSize: 24, letterSpacing: 1 }}>
+            by BCM10 News
+          </span>
         </div>
 
         <div

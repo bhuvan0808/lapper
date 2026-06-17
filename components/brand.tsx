@@ -18,8 +18,13 @@ export function Brand({
       >
         L
       </span>
-      <span className="text-lg font-semibold tracking-tight text-foreground">
-        Lapper
+      <span className="flex flex-col leading-none">
+        <span className="text-lg font-semibold tracking-tight text-foreground">
+          Lapper
+        </span>
+        <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          by BCM10 News
+        </span>
       </span>
     </span>
   );
