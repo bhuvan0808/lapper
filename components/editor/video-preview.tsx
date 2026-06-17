@@ -8,20 +8,24 @@ import { useFontsReady } from "@/hooks/use-fonts-ready";
 import { useHtmlImage } from "@/hooks/use-html-image";
 import { VIDEO_EXPORT } from "@/lib/constants";
 import {
+  computeArticleLayout,
   computeOverlayLayout,
+  drawArticleToCanvas,
   drawOverlayToCanvas,
   getFontFamily,
+  type ArticleGeometry,
 } from "@/lib/overlay-layout";
 import { useLapperStore } from "@/lib/store";
 import { cn, formatDuration } from "@/lib/utils";
 
 const LETTERBOX_FILL = "#15120E";
 const ASPECT = VIDEO_EXPORT.width / VIDEO_EXPORT.height; // 16:9
+const ARTICLE_MAX_PREVIEW_WIDTH = 560;
 
 /**
- * Live video preview. Frames are composited onto a canvas with the same
- * letterbox + overlay logic as the export pipeline, so the preview is an exact
- * match for the downloaded MP4/WebM.
+ * Live video preview. Frames are composited onto a canvas with the same logic
+ * as the export pipeline (letterboxed overlay, or stacked article card), so the
+ * preview is an exact match for the downloaded file.
  */
 export function VideoPreview() {
   const media = useLapperStore((s) => s.media);
@@ -40,9 +44,18 @@ export function VideoPreview() {
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState(0);
   const [duration, setDuration] = React.useState(media?.duration ?? 0);
+  const [videoSize, setVideoSize] = React.useState({ w: 0, h: 0 });
 
   const family = fontsReady ? getFontFamily() : "Inter, system-ui, sans-serif";
+  const isArticle = overlay.layout === "article";
 
+  const logoDims = React.useMemo(
+    () =>
+      logoImage ? { width: logoImage.width, height: logoImage.height } : null,
+    [logoImage]
+  );
+
+  // Overlay stage (16:9, fit to the available box).
   const stage = React.useMemo(() => {
     const maxW = size.width;
     const maxH = size.height;
@@ -56,19 +69,49 @@ export function VideoPreview() {
     return { width: Math.round(width), height: Math.round(height) };
   }, [size.width, size.height]);
 
+  // Article stage (auto height).
+  const articleWidth = Math.min(size.width, ARTICLE_MAX_PREVIEW_WIDTH);
+  const articleGeometry = React.useMemo<ArticleGeometry | null>(() => {
+    if (!isArticle || videoSize.w <= 0 || articleWidth <= 0) return null;
+    return computeArticleLayout({
+      targetWidth: articleWidth,
+      mediaAspect: videoSize.w / videoSize.h,
+      settings: overlay,
+      fontFamily: family,
+      logo: logoDims,
+    });
+  }, [isArticle, videoSize, articleWidth, overlay, family, logoDims]);
+
   const draw = React.useCallback(() => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || stage.width <= 0) return;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
 
+    if (isArticle) {
+      if (!articleGeometry || !video) return;
+      const W = articleGeometry.width;
+      const H = Math.ceil(articleGeometry.height);
+      if (canvas.width !== W) canvas.width = W;
+      if (canvas.height !== H) canvas.height = H;
+      drawArticleToCanvas(
+        ctx,
+        articleGeometry,
+        video,
+        videoSize.w,
+        videoSize.h,
+        logoImage ?? null
+      );
+      return;
+    }
+
+    if (stage.width <= 0) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const W = Math.round(stage.width * dpr);
     const H = Math.round(stage.height * dpr);
     if (canvas.width !== W) canvas.width = W;
     if (canvas.height !== H) canvas.height = H;
-
-    const ctx = canvas.getContext("2d", { alpha: false });
-    if (!ctx) return;
 
     ctx.fillStyle = LETTERBOX_FILL;
     ctx.fillRect(0, 0, W, H);
@@ -92,12 +135,20 @@ export function VideoPreview() {
       targetHeight: H,
       settings: overlay,
       fontFamily: family,
-      logo: logoImage
-        ? { width: logoImage.width, height: logoImage.height }
-        : null,
+      logo: logoDims,
     });
     drawOverlayToCanvas(ctx, geometry, logoImage ?? null);
-  }, [stage.width, stage.height, overlay, family, logoImage]);
+  }, [
+    isArticle,
+    articleGeometry,
+    videoSize,
+    stage.width,
+    stage.height,
+    overlay,
+    family,
+    logoImage,
+    logoDims,
+  ]);
 
   // Animation loop while playing.
   React.useEffect(() => {
@@ -170,30 +221,55 @@ export function VideoPreview() {
     if (video.paused) requestAnimationFrame(draw);
   };
 
+  const frameWidth = isArticle
+    ? (articleGeometry?.width ?? 0)
+    : stage.width;
+
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-4">
+    <div className="flex h-full w-full flex-col items-center gap-4">
       <div
         ref={containerRef}
-        className="flex min-h-0 w-full flex-1 items-center justify-center"
-      >
-        {stage.width > 0 && (
-          <div
-            className="overflow-hidden rounded-2xl shadow-soft-lg ring-1 ring-border"
-            style={{ width: stage.width, height: stage.height }}
-          >
-            <canvas
-              ref={canvasRef}
-              style={{ width: stage.width, height: stage.height }}
-              aria-label="Video preview with overlay"
-            />
-          </div>
+        className={cn(
+          "min-h-0 w-full flex-1",
+          isArticle
+            ? "flex justify-center overflow-y-auto py-1"
+            : "flex items-center justify-center"
         )}
+      >
+        {isArticle
+          ? articleGeometry && (
+              <div
+                className="h-fit overflow-hidden rounded-2xl shadow-soft-lg ring-1 ring-border"
+                style={{ width: articleGeometry.width }}
+              >
+                <canvas
+                  ref={canvasRef}
+                  style={{
+                    width: articleGeometry.width,
+                    height: Math.ceil(articleGeometry.height),
+                  }}
+                  aria-label="Video article preview"
+                />
+              </div>
+            )
+          : stage.width > 0 && (
+              <div
+                className="overflow-hidden rounded-2xl shadow-soft-lg ring-1 ring-border"
+                style={{ width: stage.width, height: stage.height }}
+              >
+                <canvas
+                  ref={canvasRef}
+                  style={{ width: stage.width, height: stage.height }}
+                  aria-label="Video preview with overlay"
+                />
+              </div>
+            )}
       </div>
 
       {/* Playback controls */}
       <div
         className="flex w-full max-w-md items-center gap-3 rounded-full border border-border bg-card px-4 py-2 shadow-soft"
-        style={{ width: stage.width > 0 ? stage.width : undefined }}
+        style={{ width: frameWidth > 0 ? frameWidth : undefined }}
       >
         <button
           type="button"
@@ -260,6 +336,10 @@ export function VideoPreview() {
         className="pointer-events-none absolute h-px w-px opacity-0"
         onLoadedMetadata={(e) => {
           setDuration(e.currentTarget.duration);
+          setVideoSize({
+            w: e.currentTarget.videoWidth,
+            h: e.currentTarget.videoHeight,
+          });
           requestAnimationFrame(draw);
         }}
         onLoadedData={() => requestAnimationFrame(draw)}

@@ -1,12 +1,21 @@
-import { VIDEO_EXPORT } from "@/lib/constants";
+import { ARTICLE_EXPORT_WIDTH, VIDEO_EXPORT } from "@/lib/constants";
 import { getFFmpeg } from "@/lib/ffmpeg";
 import {
+  computeArticleLayout,
   computeOverlayLayout,
+  drawArticleToCanvas,
   drawOverlayToCanvas,
   getFontFamily,
+  type ArticleGeometry,
   type OverlayGeometry,
 } from "@/lib/overlay-layout";
 import type { LogoAsset, OverlaySettings } from "@/lib/types";
+
+/** Round to the nearest even integer (H.264 requires even dimensions). */
+function makeEven(n: number): number {
+  const r = Math.round(n);
+  return r % 2 === 0 ? r : Math.max(2, r - 1);
+}
 
 export type VideoFormat = "mp4" | "webm";
 
@@ -118,28 +127,13 @@ export async function exportVideo({
 
   await document.fonts.ready;
 
-  const { width, height, fps } = VIDEO_EXPORT;
-
-  // Offscreen compositing canvas at the export resolution.
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d", { alpha: false });
-  if (!ctx) throw new Error("Could not create a drawing context.");
-
+  const { fps } = VIDEO_EXPORT;
   const logoImage = logo ? await loadImage(logo.src) : null;
+  const logoDims = logoImage
+    ? { width: logoImage.width, height: logoImage.height }
+    : null;
 
-  const geometry = computeOverlayLayout({
-    targetWidth: width,
-    targetHeight: height,
-    settings,
-    fontFamily: getFontFamily(),
-    logo: logoImage
-      ? { width: logoImage.width, height: logoImage.height }
-      : null,
-  });
-
-  // Hidden source video.
+  // Hidden source video — metadata first so we can size article exports.
   const video = document.createElement("video");
   video.src = videoUrl;
   video.crossOrigin = "anonymous";
@@ -152,6 +146,40 @@ export async function exportVideo({
     video.onloadedmetadata = () => resolve();
     video.onerror = () => reject(new Error("Could not load the video."));
   });
+
+  const isArticle = settings.layout === "article";
+
+  // Compositing canvas + geometry depend on the layout.
+  const canvas = document.createElement("canvas");
+  let articleGeometry: ArticleGeometry | null = null;
+  let overlayGeometry: OverlayGeometry | null = null;
+
+  if (isArticle) {
+    const aspect =
+      video.videoWidth > 0 ? video.videoWidth / video.videoHeight : 16 / 9;
+    articleGeometry = computeArticleLayout({
+      targetWidth: ARTICLE_EXPORT_WIDTH,
+      mediaAspect: aspect,
+      settings,
+      fontFamily: getFontFamily(),
+      logo: logoDims,
+    });
+    canvas.width = makeEven(articleGeometry.width);
+    canvas.height = makeEven(Math.ceil(articleGeometry.height));
+  } else {
+    canvas.width = VIDEO_EXPORT.width;
+    canvas.height = VIDEO_EXPORT.height;
+    overlayGeometry = computeOverlayLayout({
+      targetWidth: VIDEO_EXPORT.width,
+      targetHeight: VIDEO_EXPORT.height,
+      settings,
+      fontFamily: getFontFamily(),
+      logo: logoDims,
+    });
+  }
+
+  const ctx = canvas.getContext("2d", { alpha: false });
+  if (!ctx) throw new Error("Could not create a drawing context.");
 
   const recordedMime = pickMimeType(format);
   if (!recordedMime) {
@@ -273,7 +301,25 @@ export async function exportVideo({
 
     const tick = () => {
       if (stopped) return;
-      drawFrame(ctx, video, geometry, width, height, logoImage);
+      if (isArticle && articleGeometry) {
+        drawArticleToCanvas(
+          ctx,
+          articleGeometry,
+          video,
+          video.videoWidth,
+          video.videoHeight,
+          logoImage
+        );
+      } else if (overlayGeometry) {
+        drawFrame(
+          ctx,
+          video,
+          overlayGeometry,
+          VIDEO_EXPORT.width,
+          VIDEO_EXPORT.height,
+          logoImage
+        );
+      }
       const progress = Math.min(1, video.currentTime / maxDuration);
       onPhase?.("rendering", progress);
 

@@ -203,11 +203,12 @@ export function ExportBar() {
             })}
           </div>
           <p className="text-xs text-muted-foreground">
-            Exports at {VIDEO_EXPORT.width}×{VIDEO_EXPORT.height} · {VIDEO_EXPORT.fps}
-            fps with sound. Recording runs in real time, so a {Math.round(
-              Math.min(media.duration || 0, 60)
-            )}
-            s clip takes about that long.
+            {overlay.layout === "article"
+              ? "Article video · 1080px wide, height auto-fit to your text"
+              : `Exports at ${VIDEO_EXPORT.width}×${VIDEO_EXPORT.height}`}{" "}
+            · {VIDEO_EXPORT.fps}fps with sound. Recording runs in real time, so a{" "}
+            {Math.round(Math.min(media.duration || 0, 60))}s clip takes about
+            that long.
           </p>
         </div>
       )}

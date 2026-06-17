@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Mic, Square, Trash2 } from "lucide-react";
+import { Mic, Square, Trash2, Upload } from "lucide-react";
 
 import { useLapperStore } from "@/lib/store";
 import { cn, formatDuration } from "@/lib/utils";
@@ -38,6 +38,7 @@ export function VoiceoverRecorder() {
   const streamRef = React.useRef<MediaStream | null>(null);
   const timerRef = React.useRef<number | null>(null);
   const elapsedRef = React.useRef(0);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const stopTimer = () => {
     if (timerRef.current !== null) {
@@ -126,6 +127,34 @@ export function VoiceoverRecorder() {
     stopTimer();
   };
 
+  const handleFile = (file: File) => {
+    setError(null);
+    if (!file.type.startsWith("audio/")) {
+      setError("Please choose an audio file (MP3, WAV, M4A, AAC, or OGG).");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const probe = new Audio();
+    probe.preload = "metadata";
+    probe.onloadedmetadata = () =>
+      setVoiceover({
+        url,
+        duration: Number.isFinite(probe.duration) ? probe.duration : 0,
+        mimeType: file.type,
+      });
+    probe.onerror = () => {
+      URL.revokeObjectURL(url);
+      setError("That audio file couldn't be read.");
+    };
+    probe.src = url;
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+    e.target.value = "";
+  };
+
   return (
     <div className="space-y-2">
       {isRecording ? (
@@ -155,8 +184,16 @@ export function VoiceoverRecorder() {
               </button>
               <button
                 type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Replace
+              </button>
+              <button
+                type="button"
                 onClick={clearVoiceover}
-                aria-label="Delete voiceover"
+                aria-label="Delete audio"
                 className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Trash2 className="h-4 w-4" />
@@ -167,18 +204,41 @@ export function VoiceoverRecorder() {
           <audio src={voiceover.url} controls className="h-9 w-full" />
         </div>
       ) : (
-        <button
-          type="button"
-          onClick={start}
-          className={cn(
-            "flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-card px-4 py-3 text-sm font-medium text-muted-foreground transition-all",
-            "hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          )}
-        >
-          <Mic className="h-4 w-4" />
-          Record a voiceover
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={start}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-card px-3 py-3 text-sm font-medium text-muted-foreground transition-all",
+              "hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            )}
+          >
+            <Mic className="h-4 w-4" />
+            Record
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className={cn(
+              "flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-card px-3 py-3 text-sm font-medium text-muted-foreground transition-all",
+              "hover:border-primary/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            )}
+          >
+            <Upload className="h-4 w-4" />
+            Upload audio
+          </button>
+        </div>
       )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/*"
+        onChange={onFileChange}
+        className="sr-only"
+        aria-hidden="true"
+        tabIndex={-1}
+      />
 
       {error && (
         <p role="alert" className="text-xs font-medium text-destructive">

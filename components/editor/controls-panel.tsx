@@ -98,8 +98,7 @@ export function ControlsPanel() {
     setOverlay({ ...DEFAULT_OVERLAY });
   };
 
-  // Article layout is for images only; video always uses the overlay.
-  const isArticle = !isVideo && watch("layout") === "article";
+  const isArticle = watch("layout") === "article";
 
   return (
     <form
@@ -119,8 +118,7 @@ export function ControlsPanel() {
         </button>
       </div>
 
-      {/* Layout (images only) */}
-      {!isVideo && (
+      {/* Layout */}
       <div className="space-y-3">
         <p className="text-sm font-semibold text-foreground">Layout</p>
         <Controller
@@ -171,11 +169,10 @@ export function ControlsPanel() {
         {isArticle && (
           <p className="rounded-xl bg-secondary/40 px-4 py-2.5 text-xs text-muted-foreground">
             Article mode grows to fit <strong>all</strong> your text — great for
-            long, detailed news. Exports as a tall image.
+            long, detailed news. Exports as a tall {isVideo ? "video" : "image"}.
           </p>
         )}
       </div>
-      )}
 
       {/* Content */}
       <ControlSection
@@ -546,9 +543,11 @@ export function ControlsPanel() {
 
           <div className="space-y-3 border-t border-border pt-4">
             <div>
-              <p className="text-sm font-medium text-foreground">Voiceover</p>
+              <p className="text-sm font-medium text-foreground">
+                Voiceover or audio track
+              </p>
               <p className="text-xs text-muted-foreground">
-                Record narration from your device mic
+                Record from your mic or import an audio file (MP3, WAV…)
               </p>
             </div>
             <VoiceoverRecorder />
@@ -559,7 +558,7 @@ export function ControlsPanel() {
                 render={({ field }) => (
                   <SliderRow
                     id="voiceoverVolume"
-                    label="Voiceover volume"
+                    label="Added audio volume"
                     display={`${Math.round(field.value * 100)}%`}
                     min={VOLUME_RANGE.min}
                     max={VOLUME_RANGE.max}

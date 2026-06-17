@@ -605,6 +605,100 @@ export function computeArticleLayout({
   };
 }
 
+/**
+ * Draw the article card onto a 2D canvas (used by the video pipeline + preview).
+ * `source` is the current video frame (or an image); it's cover-fit into the
+ * media region.
+ */
+export function drawArticleToCanvas(
+  ctx: CanvasRenderingContext2D,
+  geometry: ArticleGeometry,
+  source: CanvasImageSource,
+  sourceWidth: number,
+  sourceHeight: number,
+  logoImage?: CanvasImageSource | null
+): void {
+  const { width, height, media, panel, kicker, headline, body, logo } = geometry;
+
+  // Panel colour fills the whole card.
+  ctx.fillStyle = panel.fill;
+  ctx.fillRect(0, 0, width, height);
+
+  // Media, cover-fit and clipped to its region.
+  if (sourceWidth > 0 && sourceHeight > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(media.x, media.y, media.width, media.height);
+    ctx.clip();
+    const scale = Math.max(
+      media.width / sourceWidth,
+      media.height / sourceHeight
+    );
+    const dw = sourceWidth * scale;
+    const dh = sourceHeight * scale;
+    ctx.drawImage(
+      source,
+      media.x + (media.width - dw) / 2,
+      media.y + (media.height - dh) / 2,
+      dw,
+      dh
+    );
+    ctx.restore();
+  }
+
+  if (kicker) {
+    ctx.save();
+    ctx.fillStyle = kicker.barFill;
+    roundRectPath(
+      ctx,
+      kicker.barX,
+      kicker.barY,
+      kicker.barWidth,
+      kicker.barHeight,
+      kicker.barRadius
+    );
+    ctx.fill();
+    ctx.fillStyle = kicker.color;
+    ctx.font = kicker.font;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    applyLetterSpacing(ctx, kicker.letterSpacing);
+    ctx.fillText(kicker.text, kicker.textX, kicker.textY);
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.fillStyle = headline.color;
+  ctx.font = headline.font;
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+  for (const line of headline.lines) {
+    ctx.fillText(line.text, line.x, line.y);
+  }
+  ctx.restore();
+
+  if (body) {
+    ctx.save();
+    ctx.fillStyle = body.color;
+    ctx.font = body.font;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    for (const line of body.lines) {
+      ctx.fillText(line.text, line.x, line.y);
+    }
+    ctx.restore();
+  }
+
+  if (logo && logoImage) {
+    ctx.save();
+    ctx.shadowColor = "rgba(0, 0, 0, 0.22)";
+    ctx.shadowBlur = logo.width * 0.05;
+    ctx.shadowOffsetY = logo.width * 0.012;
+    ctx.drawImage(logoImage, logo.x, logo.y, logo.width, logo.height);
+    ctx.restore();
+  }
+}
+
 function roundRectPath(
   ctx: CanvasRenderingContext2D,
   x: number,

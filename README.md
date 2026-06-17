@@ -9,10 +9,10 @@ news-style lower-third overlay, fine-tune it live, and download a high-quality f
 - 🎬 Videos → **MP4 / WebM** at 1920×1080, 30fps, with sound
 - 🏷️ **Brand logo** pinned to the top-right corner of every export (upload any PNG/JPG/SVG/WEBP)
 - 📝 **Headline + supporting paragraph** for richer, detailed lower-thirds
-- 📰 **Article layout** — photo on top, a text panel below that **auto-grows to fit long news** (20+ lines)
+- 📰 **Article layout** (images **and** video) — media on top, a text panel below that **auto-grows to fit long news** (20+ lines)
 - 🌐 **Telugu + English** rendering (Noto Sans Telugu with per-glyph fallback)
 - 🔊 **Audio control** — mute or set the video's volume; baked into the export via the Web Audio API
-- 🎙️ **Mic voiceover** — record narration from your device microphone, hear it in the preview, and mix it into the exported video
+- 🎙️ **Voiceover / audio track** — record narration from your mic **or import an audio file** (MP3/WAV…); mixed into the exported video
 - 🔒 **100% client-side** — no login, no backend, no uploads. Your media never leaves your device.
 
 ---
