@@ -9,6 +9,8 @@ news-style lower-third overlay, fine-tune it live, and download a high-quality f
 - 🎬 Videos → **MP4 / WebM** at 1920×1080, 30fps, with sound
 - 🏷️ **Brand logo** pinned to the top-right corner of every export (upload any PNG/JPG/SVG/WEBP)
 - 📝 **Headline + supporting paragraph** for richer, detailed lower-thirds
+- 📰 **Article layout** — photo on top, a text panel below that **auto-grows to fit long news** (20+ lines)
+- 🌐 **Telugu + English** rendering (Noto Sans Telugu with per-glyph fallback)
 - 🔒 **100% client-side** — no login, no backend, no uploads. Your media never leaves your device.
 
 ---

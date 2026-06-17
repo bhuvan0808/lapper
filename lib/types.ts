@@ -18,6 +18,9 @@ export interface MediaAsset {
 
 export type OverlayPosition = "top" | "bottom";
 
+/** Banner over the media, vs. a stacked "article" card (media + text panel). */
+export type LayoutMode = "overlay" | "article";
+
 export type FontWeight = 400 | 500 | 600 | 700 | 800;
 
 /** A user-supplied brand logo, stored as a data URL so it survives reloads. */
@@ -30,6 +33,8 @@ export interface LogoAsset {
 
 /** Everything the user can tweak about the lower-third overlay. */
 export interface OverlaySettings {
+  /** Overlay banner vs. stacked article card. */
+  layout: LayoutMode;
   /** Small kicker / category line, e.g. "BREAKING NEWS". */
   kicker: string;
   /** Main headline shown in the banner body. */

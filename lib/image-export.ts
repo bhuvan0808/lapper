@@ -1,6 +1,11 @@
 import Konva from "konva";
-import { IMAGE_EXPORT_PIXEL_RATIO } from "@/lib/constants";
 import {
+  ARTICLE_EXPORT_PIXEL_RATIO,
+  ARTICLE_EXPORT_WIDTH,
+  IMAGE_EXPORT_PIXEL_RATIO,
+} from "@/lib/constants";
+import {
+  computeArticleLayout,
   computeOverlayLayout,
   getFontFamily,
 } from "@/lib/overlay-layout";
@@ -56,6 +61,10 @@ export async function exportImage({
   await document.fonts.ready;
   const image = await loadImage(imageUrl);
   const logoImage = logo ? await loadImage(logo.src) : null;
+
+  if (settings.layout === "article") {
+    return exportArticleImage(image, logoImage, settings);
+  }
 
   // Off-screen container, kept out of the layout flow.
   const container = document.createElement("div");
@@ -185,6 +194,152 @@ export async function exportImage({
     const dataUrl = stage.toDataURL({
       mimeType: "image/png",
       pixelRatio,
+    });
+
+    return dataURLToBlob(dataUrl);
+  } finally {
+    stage.destroy();
+    container.remove();
+  }
+}
+
+/**
+ * Render the stacked article card (media on top, auto-height text panel below)
+ * and export it as a tall PNG that contains the full body text.
+ */
+async function exportArticleImage(
+  image: HTMLImageElement,
+  logoImage: HTMLImageElement | null,
+  settings: OverlaySettings
+): Promise<Blob> {
+  const geometry = computeArticleLayout({
+    targetWidth: ARTICLE_EXPORT_WIDTH,
+    mediaAspect: image.width / image.height,
+    settings,
+    fontFamily: getFontFamily(),
+    logo: logoImage
+      ? { width: logoImage.width, height: logoImage.height }
+      : null,
+  });
+
+  const width = geometry.width;
+  const height = Math.ceil(geometry.height);
+
+  const container = document.createElement("div");
+  container.style.position = "fixed";
+  container.style.top = "-100000px";
+  container.style.left = "-100000px";
+  container.style.pointerEvents = "none";
+  document.body.appendChild(container);
+
+  const stage = new Konva.Stage({ container, width, height });
+  const layer = new Konva.Layer({ listening: false });
+  stage.add(layer);
+
+  try {
+    // Panel colour fills the whole card.
+    layer.add(
+      new Konva.Rect({ x: 0, y: 0, width, height, fill: geometry.panel.fill })
+    );
+
+    // Media, cover-fit and clipped to its region.
+    const m = geometry.media;
+    const cover = coverRect(image.width, image.height, m.width, m.height);
+    const mediaGroup = new Konva.Group({
+      clipX: m.x,
+      clipY: m.y,
+      clipWidth: m.width,
+      clipHeight: m.height,
+    });
+    mediaGroup.add(
+      new Konva.Image({
+        image,
+        x: m.x + cover.x,
+        y: m.y + cover.y,
+        width: cover.width,
+        height: cover.height,
+      })
+    );
+    layer.add(mediaGroup);
+
+    const { kicker, headline, body } = geometry;
+
+    if (kicker) {
+      layer.add(
+        new Konva.Rect({
+          x: kicker.barX,
+          y: kicker.barY,
+          width: kicker.barWidth,
+          height: kicker.barHeight,
+          cornerRadius: kicker.barRadius,
+          fill: kicker.barFill,
+        })
+      );
+      layer.add(
+        new Konva.Text({
+          x: kicker.textX,
+          y: kicker.textY,
+          text: kicker.text,
+          fontFamily: geometry.fontFamily,
+          fontSize: kicker.fontSize,
+          fontStyle: "700",
+          fill: kicker.color,
+          letterSpacing: kicker.letterSpacing,
+        })
+      );
+    }
+
+    for (const line of headline.lines) {
+      layer.add(
+        new Konva.Text({
+          x: line.x,
+          y: line.y,
+          text: line.text,
+          fontFamily: geometry.fontFamily,
+          fontSize: headline.fontSize,
+          fontStyle: String(settings.fontWeight),
+          fill: headline.color,
+        })
+      );
+    }
+
+    if (body) {
+      for (const line of body.lines) {
+        layer.add(
+          new Konva.Text({
+            x: line.x,
+            y: line.y,
+            text: line.text,
+            fontFamily: geometry.fontFamily,
+            fontSize: body.fontSize,
+            fontStyle: "400",
+            fill: body.color,
+          })
+        );
+      }
+    }
+
+    if (geometry.logo && logoImage) {
+      layer.add(
+        new Konva.Image({
+          image: logoImage,
+          x: geometry.logo.x,
+          y: geometry.logo.y,
+          width: geometry.logo.width,
+          height: geometry.logo.height,
+          shadowColor: "#000000",
+          shadowBlur: geometry.logo.width * 0.05,
+          shadowOpacity: 0.22,
+          shadowOffsetY: geometry.logo.width * 0.012,
+        })
+      );
+    }
+
+    layer.draw();
+
+    const dataUrl = stage.toDataURL({
+      mimeType: "image/png",
+      pixelRatio: ARTICLE_EXPORT_PIXEL_RATIO,
     });
 
     return dataURLToBlob(dataUrl);

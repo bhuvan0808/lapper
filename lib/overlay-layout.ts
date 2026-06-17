@@ -85,6 +85,15 @@ const BODY_FONT_RATIO = 0.44;
 const BODY_MIN_FONT = 22;
 const BODY_COLOR_OPACITY = 0.85;
 
+// Article ("stacked card") layout — media on top, text panel below.
+const ARTICLE_PAD = 56;
+const ARTICLE_HEADLINE_LH = 1.18;
+const ARTICLE_BODY_LH = 1.5; // generous so Telugu glyph stacks never clip
+const ARTICLE_BODY_FONT_RATIO = 0.5;
+const ARTICLE_BODY_MIN_FONT = 26;
+const ARTICLE_HEADLINE_BODY_GAP = 24;
+const ARTICLE_MEDIA_MAX_RATIO = 1.1; // media height capped to 1.1 × width
+
 let sharedCtx: CanvasRenderingContext2D | null = null;
 
 /** Default browser text measurement backed by a reusable offscreen canvas. */
@@ -390,6 +399,210 @@ function applyLetterSpacing(ctx: CanvasRenderingContext2D, spacing: number) {
   } catch {
     /* no-op on browsers without canvas letterSpacing */
   }
+}
+
+/** Geometry for the stacked article card (media on top, text panel below). */
+export interface ArticleGeometry {
+  width: number;
+  height: number;
+  fontFamily: string;
+  scale: number;
+  media: { x: number; y: number; width: number; height: number };
+  panel: { x: number; y: number; width: number; height: number; fill: string };
+  kicker: OverlayGeometry["kicker"];
+  headline: OverlayGeometry["headline"];
+  body: OverlayGeometry["body"];
+  logo: OverlayGeometry["logo"];
+}
+
+export interface ComputeArticleOptions {
+  targetWidth: number;
+  /** Intrinsic media aspect ratio (width / height). */
+  mediaAspect: number;
+  settings: OverlaySettings;
+  measure?: MeasureText;
+  fontFamily?: string;
+  logo?: { width: number; height: number } | null;
+}
+
+/**
+ * Lay out the article card. Width is fixed; height GROWS to fit all the text,
+ * so the full body (e.g. 20+ lines of Telugu news) is always included.
+ */
+export function computeArticleLayout({
+  targetWidth,
+  mediaAspect,
+  settings,
+  measure = defaultMeasureText,
+  fontFamily,
+  logo,
+}: ComputeArticleOptions): ArticleGeometry {
+  const scale = targetWidth / DESIGN_WIDTH;
+  const family = fontFamily ?? getFontFamily();
+  const W = targetWidth;
+
+  // Media region: full width, natural aspect, capped so it never dominates.
+  const naturalHeight = mediaAspect > 0 ? W / mediaAspect : W * 0.6;
+  const mediaHeight = Math.min(naturalHeight, W * ARTICLE_MEDIA_MAX_RATIO);
+
+  const pad = ARTICLE_PAD * scale;
+  const contentX = pad;
+  const contentWidth = W - pad * 2;
+
+  // Kicker (same brand styling as the overlay)
+  const showKicker = settings.showKicker && settings.kicker.trim().length > 0;
+  const kickerLetterSpacing = KICKER_LETTER_SPACING * scale;
+  let kickerFontSize = 0;
+  let kickerFont = "";
+  let kickerText = "";
+  let kickerBarWidth = 0;
+  let kickerBarHeight = 0;
+  let kickerBlockHeight = 0;
+  if (showKicker) {
+    kickerText = settings.kicker.toUpperCase();
+    kickerFontSize = Math.max(26 * scale, 22 * scale);
+    kickerFont = `700 ${kickerFontSize}px ${family}`;
+    const rawWidth = measure(kickerText, kickerFont);
+    const tracking = Math.max(0, kickerText.length - 1) * kickerLetterSpacing;
+    kickerBarWidth = rawWidth + tracking + KICKER_PAD_X * 2 * scale;
+    kickerBarHeight = kickerFontSize + KICKER_PAD_Y * 2 * scale;
+    kickerBlockHeight = kickerBarHeight + KICKER_GAP * scale;
+  }
+
+  // Headline
+  const headlineFontSize = settings.fontSize * scale;
+  const headlineFont = `${settings.fontWeight} ${headlineFontSize}px ${family}`;
+  const headlineLineHeight = headlineFontSize * ARTICLE_HEADLINE_LH;
+  const headlineWrapped = wrapText(
+    settings.headline || " ",
+    contentWidth,
+    headlineFont,
+    measure
+  );
+  const headlineBlockHeight = headlineWrapped.length * headlineLineHeight;
+
+  // Body (the long-form news)
+  const showBody = settings.body.trim().length > 0;
+  let bodyFontSize = 0;
+  let bodyFont = "";
+  let bodyLineHeight = 0;
+  let bodyWrapped: string[] = [];
+  let bodyBlockHeight = 0;
+  if (showBody) {
+    bodyFontSize = Math.max(
+      headlineFontSize * ARTICLE_BODY_FONT_RATIO,
+      ARTICLE_BODY_MIN_FONT * scale
+    );
+    bodyFont = `400 ${bodyFontSize}px ${family}`;
+    bodyLineHeight = bodyFontSize * ARTICLE_BODY_LH;
+    // Split on explicit newlines first, then word-wrap each paragraph.
+    bodyWrapped = settings.body
+      .split(/\r?\n/)
+      .flatMap((para) =>
+        para.trim().length === 0
+          ? [""]
+          : wrapText(para, contentWidth, bodyFont, measure)
+      );
+    bodyBlockHeight = bodyWrapped.length * bodyLineHeight;
+  }
+
+  const panelTop = mediaHeight;
+  const panelInner =
+    kickerBlockHeight +
+    headlineBlockHeight +
+    (showBody ? ARTICLE_HEADLINE_BODY_GAP * scale + bodyBlockHeight : 0);
+  const panelHeight = pad * 2 + panelInner;
+  const totalHeight = mediaHeight + panelHeight;
+
+  // Positions
+  let cursorY = panelTop + pad;
+
+  let kicker: OverlayGeometry["kicker"] = null;
+  if (showKicker) {
+    kicker = {
+      barX: contentX,
+      barY: cursorY,
+      barWidth: kickerBarWidth,
+      barHeight: kickerBarHeight,
+      barFill: PALETTE.primary,
+      barRadius: Math.min(kickerBarHeight / 2, 10 * scale),
+      textX: contentX + KICKER_PAD_X * scale,
+      textY: cursorY + KICKER_PAD_Y * scale,
+      text: kickerText,
+      font: kickerFont,
+      fontSize: kickerFontSize,
+      color: "#FFFFFF",
+      letterSpacing: kickerLetterSpacing,
+    };
+    cursorY += kickerBlockHeight;
+  }
+
+  const headlineLines: PositionedLine[] = headlineWrapped.map((text, i) => ({
+    text,
+    x: contentX,
+    y: cursorY + i * headlineLineHeight,
+  }));
+
+  let body: OverlayGeometry["body"] = null;
+  if (showBody) {
+    const bodyTop =
+      cursorY + headlineBlockHeight + ARTICLE_HEADLINE_BODY_GAP * scale;
+    body = {
+      font: bodyFont,
+      color: settings.textColor,
+      fontSize: bodyFontSize,
+      lineHeight: bodyLineHeight,
+      lines: bodyWrapped.map((text, i) => ({
+        text,
+        x: contentX,
+        y: bodyTop + i * bodyLineHeight,
+      })),
+    };
+  }
+
+  // Logo over the media, top-right.
+  let logoGeometry: OverlayGeometry["logo"] = null;
+  if (settings.showLogo && logo && logo.width > 0 && logo.height > 0) {
+    const gutter = 40 * scale;
+    let logoWidth = W * settings.logoScale;
+    let logoHeight = logoWidth * (logo.height / logo.width);
+    const maxLogoHeight = mediaHeight * 0.5;
+    if (logoHeight > maxLogoHeight) {
+      logoHeight = maxLogoHeight;
+      logoWidth = logoHeight * (logo.width / logo.height);
+    }
+    logoGeometry = {
+      x: W - gutter - logoWidth,
+      y: gutter,
+      width: logoWidth,
+      height: logoHeight,
+    };
+  }
+
+  return {
+    width: W,
+    height: totalHeight,
+    fontFamily: family,
+    scale,
+    media: { x: 0, y: 0, width: W, height: mediaHeight },
+    panel: {
+      x: 0,
+      y: panelTop,
+      width: W,
+      height: panelHeight,
+      fill: settings.bannerColor,
+    },
+    kicker,
+    headline: {
+      font: headlineFont,
+      color: settings.textColor,
+      fontSize: headlineFontSize,
+      lineHeight: headlineLineHeight,
+      lines: headlineLines,
+    },
+    body,
+    logo: logoGeometry,
+  };
 }
 
 function roundRectPath(

@@ -58,6 +58,7 @@ export const DEFAULT_LOGO: LogoAsset = {
 };
 
 export const DEFAULT_OVERLAY: OverlaySettings = {
+  layout: "overlay",
   kicker: "BREAKING NEWS",
   headline: "Your headline goes here",
   body: "",
@@ -108,6 +109,10 @@ export const IMAGE_EXPORT_PRESETS: ImageExportPreset[] = [
 
 /** High-quality still export multiplier (per product spec). */
 export const IMAGE_EXPORT_PIXEL_RATIO = 4;
+
+/** Article layout export: fixed width, auto height. Lower ratio (tall canvas). */
+export const ARTICLE_EXPORT_WIDTH = 1080;
+export const ARTICLE_EXPORT_PIXEL_RATIO = 2;
 
 /** Video export target. */
 export const VIDEO_EXPORT = {

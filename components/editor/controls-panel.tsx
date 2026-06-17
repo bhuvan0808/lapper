@@ -6,6 +6,8 @@ import {
   AlignVerticalJustifyStart,
   AlignVerticalJustifyEnd,
   BadgeCheck,
+  Layers,
+  LayoutList,
   Palette,
   RotateCcw,
   Type,
@@ -34,7 +36,12 @@ import {
   LOGO_SCALE_RANGE,
 } from "@/lib/constants";
 import { useLapperStore } from "@/lib/store";
-import type { FontWeight, OverlayPosition, OverlaySettings } from "@/lib/types";
+import type {
+  FontWeight,
+  LayoutMode,
+  OverlayPosition,
+  OverlaySettings,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const POSITION_OPTIONS: {
@@ -46,9 +53,25 @@ const POSITION_OPTIONS: {
   { value: "bottom", label: "Bottom", icon: <AlignVerticalJustifyEnd /> },
 ];
 
+const LAYOUT_OPTIONS: {
+  value: LayoutMode;
+  label: string;
+  hint: string;
+  icon: React.ReactNode;
+}[] = [
+  { value: "overlay", label: "Overlay", hint: "Banner on media", icon: <Layers /> },
+  {
+    value: "article",
+    label: "Article",
+    hint: "Photo + text below",
+    icon: <LayoutList />,
+  },
+];
+
 export function ControlsPanel() {
   const setOverlay = useLapperStore((s) => s.setOverlay);
   const logo = useLapperStore((s) => s.logo);
+  const isVideo = useLapperStore((s) => s.media?.kind === "video");
 
   // RHF owns the form; defaults come from the store's current overlay.
   const initialValues = React.useRef(
@@ -71,6 +94,9 @@ export function ControlsPanel() {
     setOverlay({ ...DEFAULT_OVERLAY });
   };
 
+  // Article layout is for images only; video always uses the overlay.
+  const isArticle = !isVideo && watch("layout") === "article";
+
   return (
     <form
       className="space-y-8"
@@ -89,6 +115,64 @@ export function ControlsPanel() {
         </button>
       </div>
 
+      {/* Layout (images only) */}
+      {!isVideo && (
+      <div className="space-y-3">
+        <p className="text-sm font-semibold text-foreground">Layout</p>
+        <Controller
+          control={control}
+          name="layout"
+          render={({ field }) => (
+            <div
+              role="radiogroup"
+              aria-label="Layout mode"
+              className="grid grid-cols-2 gap-3"
+            >
+              {LAYOUT_OPTIONS.map((option) => {
+                const selected = field.value === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => field.onChange(option.value)}
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 rounded-xl border-2 bg-card p-4 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                      selected
+                        ? "border-primary shadow-soft"
+                        : "border-border hover:border-primary/40"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "[&_svg]:h-5 [&_svg]:w-5",
+                        selected ? "text-primary" : "text-muted-foreground"
+                      )}
+                    >
+                      {option.icon}
+                    </span>
+                    <span className="text-sm font-medium text-foreground">
+                      {option.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {option.hint}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        />
+        {isArticle && (
+          <p className="rounded-xl bg-secondary/40 px-4 py-2.5 text-xs text-muted-foreground">
+            Article mode grows to fit <strong>all</strong> your text — great for
+            long, detailed news. Exports as a tall image.
+          </p>
+        )}
+      </div>
+      )}
+
       {/* Content */}
       <ControlSection
         title="Content"
@@ -106,14 +190,25 @@ export function ControlsPanel() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="body">Details (optional)</Label>
+          <Label htmlFor="body">
+            {isArticle ? "News body" : "Details (optional)"}
+          </Label>
           <Textarea
             id="body"
-            placeholder="Add supporting text shown beneath the headline…"
-            rows={4}
-            maxLength={400}
+            placeholder={
+              isArticle
+                ? "Write the full story here — as many lines as you need. Telugu and English are both supported."
+                : "Add supporting text shown beneath the headline…"
+            }
+            rows={isArticle ? 8 : 4}
+            maxLength={isArticle ? 6000 : 600}
             {...register("body")}
           />
+          {isArticle && (
+            <p className="text-xs text-muted-foreground">
+              Line breaks are kept. The card grows to fit everything.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-secondary/30 px-4 py-3">
@@ -162,7 +257,8 @@ export function ControlsPanel() {
         />
       </ControlSection>
 
-      {/* Position */}
+      {/* Position (overlay only) */}
+      {!isArticle && (
       <ControlSection
         title="Position"
         description="Where the banner sits"
@@ -209,6 +305,7 @@ export function ControlsPanel() {
           )}
         />
       </ControlSection>
+      )}
 
       {/* Colors */}
       <ControlSection
@@ -234,28 +331,30 @@ export function ControlsPanel() {
           render={({ field }) => (
             <ColorField
               id="bannerColor"
-              label="Banner color"
+              label={isArticle ? "Panel color" : "Banner color"}
               value={field.value}
               onChange={field.onChange}
             />
           )}
         />
-        <Controller
-          control={control}
-          name="bannerOpacity"
-          render={({ field }) => (
-            <SliderRow
-              id="bannerOpacity"
-              label="Banner opacity"
-              display={`${Math.round(field.value * 100)}%`}
-              min={0}
-              max={100}
-              step={1}
-              value={Math.round(field.value * 100)}
-              onValueChange={(v) => field.onChange(v / 100)}
-            />
-          )}
-        />
+        {!isArticle && (
+          <Controller
+            control={control}
+            name="bannerOpacity"
+            render={({ field }) => (
+              <SliderRow
+                id="bannerOpacity"
+                label="Banner opacity"
+                display={`${Math.round(field.value * 100)}%`}
+                min={0}
+                max={100}
+                step={1}
+                value={Math.round(field.value * 100)}
+                onValueChange={(v) => field.onChange(v / 100)}
+              />
+            )}
+          />
+        )}
       </ControlSection>
 
       {/* Typography */}
@@ -308,22 +407,24 @@ export function ControlsPanel() {
           />
         </div>
 
-        <Controller
-          control={control}
-          name="borderRadius"
-          render={({ field }) => (
-            <SliderRow
-              id="borderRadius"
-              label="Border radius"
-              display={`${Math.round(field.value)}px`}
-              min={BORDER_RADIUS_RANGE.min}
-              max={BORDER_RADIUS_RANGE.max}
-              step={BORDER_RADIUS_RANGE.step}
-              value={field.value}
-              onValueChange={field.onChange}
-            />
-          )}
-        />
+        {!isArticle && (
+          <Controller
+            control={control}
+            name="borderRadius"
+            render={({ field }) => (
+              <SliderRow
+                id="borderRadius"
+                label="Border radius"
+                display={`${Math.round(field.value)}px`}
+                min={BORDER_RADIUS_RANGE.min}
+                max={BORDER_RADIUS_RANGE.max}
+                step={BORDER_RADIUS_RANGE.step}
+                value={field.value}
+                onValueChange={field.onChange}
+              />
+            )}
+          />
+        )}
       </ControlSection>
 
       {/* Branding */}

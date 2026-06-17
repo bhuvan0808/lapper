@@ -42,6 +42,7 @@ export function ExportBar() {
 
   if (!media) return null;
   const isImage = media.kind === "image";
+  const isArticleImage = isImage && overlay.layout === "article";
 
   async function handleImageExport() {
     if (!media) return;
@@ -128,6 +129,13 @@ export function ExportBar() {
     <div className="space-y-5">
       {isImage ? (
         <div className="space-y-3">
+          {isArticleImage ? (
+            <div className="rounded-xl border border-border bg-secondary/30 px-4 py-3 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Article</span> —
+              auto-sized to fit all your text (1080px wide).
+            </div>
+          ) : (
+            <>
           <p className="text-sm font-medium text-foreground">Choose a size</p>
           <div className="grid gap-2.5">
             {IMAGE_EXPORT_PRESETS.map((preset) => {
@@ -162,6 +170,8 @@ export function ExportBar() {
               );
             })}
           </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

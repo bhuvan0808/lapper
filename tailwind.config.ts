@@ -66,7 +66,12 @@ const config: Config = {
         ring: "hsl(var(--ring) / <alpha-value>)",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        sans: [
+          "var(--font-inter)",
+          "var(--font-noto-telugu)",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       borderRadius: {
         lg: "var(--radius)",
