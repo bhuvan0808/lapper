@@ -140,7 +140,9 @@ export async function exportVideo({
   const video = document.createElement("video");
   video.src = videoUrl;
   video.crossOrigin = "anonymous";
-  video.muted = false;
+  // When not muting we route audio through Web Audio (which detaches the
+  // element from the speakers), so there's no double playback either way.
+  video.muted = settings.muteAudio;
   video.playsInline = true;
 
   await new Promise<void>((resolve, reject) => {
@@ -155,17 +157,44 @@ export async function exportVideo({
 
   const stream = canvas.captureStream(fps);
 
-  // Pull the audio track from the source so exports keep their sound.
+  // Audio: honour the user's mute / volume choice. We route the source through
+  // a Web Audio gain node so the chosen volume is actually baked into the file.
   type Capturable = HTMLVideoElement & {
     captureStream?: () => MediaStream;
     mozCaptureStream?: () => MediaStream;
   };
-  try {
-    const capt = video as Capturable;
-    const sourceStream = capt.captureStream?.() ?? capt.mozCaptureStream?.();
-    sourceStream?.getAudioTracks().forEach((track) => stream.addTrack(track));
-  } catch {
-    /* Audio capture is best-effort; silent export still succeeds. */
+  type WindowWithWebkitAudio = typeof window & {
+    webkitAudioContext?: typeof AudioContext;
+  };
+
+  let audioContext: AudioContext | null = null;
+  if (!settings.muteAudio) {
+    try {
+      const Ctor =
+        window.AudioContext ||
+        (window as WindowWithWebkitAudio).webkitAudioContext;
+      if (!Ctor) throw new Error("no AudioContext");
+      audioContext = new Ctor();
+      await audioContext.resume();
+      const sourceNode = audioContext.createMediaElementSource(video);
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = Math.max(0, settings.volume);
+      const destination = audioContext.createMediaStreamDestination();
+      sourceNode.connect(gainNode);
+      gainNode.connect(destination);
+      destination.stream
+        .getAudioTracks()
+        .forEach((track) => stream.addTrack(track));
+    } catch {
+      // Fallback: capture the element's audio directly (no volume control).
+      try {
+        const capt = video as Capturable;
+        const sourceStream = capt.captureStream?.() ?? capt.mozCaptureStream?.();
+        sourceStream?.getAudioTracks().forEach((track) => stream.addTrack(track));
+      } catch {
+        /* Silent export still succeeds. */
+      }
+    }
   }
 
   const recorder = new MediaRecorder(stream, {
@@ -216,6 +245,14 @@ export async function exportVideo({
   });
 
   await recordingDone;
+
+  if (audioContext) {
+    try {
+      await audioContext.close();
+    } catch {
+      /* ignore */
+    }
+  }
 
   const recordedBlob = new Blob(chunks, { type: recordedMime });
 

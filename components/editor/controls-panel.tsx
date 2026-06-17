@@ -11,6 +11,7 @@ import {
   Palette,
   RotateCcw,
   Type,
+  Volume2,
 } from "lucide-react";
 
 import { ColorField } from "@/components/editor/color-field";
@@ -34,6 +35,7 @@ import {
   FONT_SIZE_RANGE,
   FONT_WEIGHT_OPTIONS,
   LOGO_SCALE_RANGE,
+  VOLUME_RANGE,
 } from "@/lib/constants";
 import { useLapperStore } from "@/lib/store";
 import type {
@@ -479,6 +481,68 @@ export function ControlsPanel() {
           </>
         )}
       </ControlSection>
+
+      {/* Audio (video only) */}
+      {isVideo && (
+        <ControlSection
+          title="Audio"
+          description="The video's sound in your export"
+          icon={<Volume2 />}
+        >
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-secondary/30 px-4 py-3">
+            <div>
+              <Label htmlFor="muteAudio" className="cursor-pointer">
+                Mute audio
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Export the video with no sound
+              </p>
+            </div>
+            <Controller
+              control={control}
+              name="muteAudio"
+              render={({ field }) => (
+                <Switch
+                  id="muteAudio"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  aria-label="Mute audio"
+                />
+              )}
+            />
+          </div>
+
+          <Controller
+            control={control}
+            name="muteAudio"
+            render={({ field: muteField }) => (
+              <Controller
+                control={control}
+                name="volume"
+                render={({ field }) => (
+                  <div
+                    className={cn(
+                      "transition-opacity",
+                      muteField.value && "pointer-events-none opacity-50"
+                    )}
+                  >
+                    <SliderRow
+                      id="volume"
+                      label="Volume"
+                      display={`${Math.round(field.value * 100)}%`}
+                      min={VOLUME_RANGE.min}
+                      max={VOLUME_RANGE.max}
+                      step={VOLUME_RANGE.step}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    />
+                  </div>
+                )}
+              />
+            )}
+          />
+        </ControlSection>
+      )}
     </form>
   );
 }

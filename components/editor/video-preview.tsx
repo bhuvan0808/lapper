@@ -27,6 +27,7 @@ export function VideoPreview() {
   const media = useLapperStore((s) => s.media);
   const overlay = useLapperStore((s) => s.overlay);
   const logo = useLapperStore((s) => s.logo);
+  const setOverlay = useLapperStore((s) => s.setOverlay);
   const fontsReady = useFontsReady();
   const { image: logoImage } = useHtmlImage(logo?.src);
 
@@ -35,7 +36,6 @@ export function VideoPreview() {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
 
   const [isPlaying, setIsPlaying] = React.useState(false);
-  const [muted, setMuted] = React.useState(true);
   const [currentTime, setCurrentTime] = React.useState(0);
   const [duration, setDuration] = React.useState(media?.duration ?? 0);
 
@@ -115,6 +115,14 @@ export function VideoPreview() {
   React.useEffect(() => {
     draw();
   }, [draw, fontsReady]);
+
+  // Keep the preview's audio in sync with the mute / volume settings.
+  React.useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = overlay.muteAudio;
+    video.volume = Math.min(1, Math.max(0, overlay.volume));
+  }, [overlay.muteAudio, overlay.volume]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -212,15 +220,11 @@ export function VideoPreview() {
 
         <button
           type="button"
-          onClick={() => {
-            const next = !muted;
-            setMuted(next);
-            if (videoRef.current) videoRef.current.muted = next;
-          }}
-          aria-label={muted ? "Unmute preview" : "Mute preview"}
+          onClick={() => setOverlay({ muteAudio: !overlay.muteAudio })}
+          aria-label={overlay.muteAudio ? "Unmute" : "Mute"}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          {muted ? (
+          {overlay.muteAudio ? (
             <VolumeX className="h-4 w-4" />
           ) : (
             <Volume2 className="h-4 w-4" />
@@ -232,7 +236,6 @@ export function VideoPreview() {
       <video
         ref={videoRef}
         src={media?.url}
-        muted={muted}
         loop
         playsInline
         preload="auto"

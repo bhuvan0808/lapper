@@ -72,6 +72,8 @@ export const DEFAULT_OVERLAY: OverlaySettings = {
   showKicker: true,
   showLogo: true,
   logoScale: 0.16,
+  muteAudio: false,
+  volume: 1,
 };
 
 export const FONT_WEIGHT_OPTIONS: { value: FontWeight; label: string }[] = [
@@ -126,3 +128,5 @@ export const FONT_SIZE_RANGE = { min: 24, max: 120, step: 1 } as const;
 export const BORDER_RADIUS_RANGE = { min: 0, max: 48, step: 1 } as const;
 /** Logo size slider bounds (fraction of frame width). */
 export const LOGO_SCALE_RANGE = { min: 0.08, max: 0.32, step: 0.005 } as const;
+/** Audio volume slider bounds (0–1). */
+export const VOLUME_RANGE = { min: 0, max: 1, step: 0.01 } as const;

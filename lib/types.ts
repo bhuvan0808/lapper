@@ -57,6 +57,10 @@ export interface OverlaySettings {
   showLogo: boolean;
   /** Logo width as a fraction of the frame width (e.g. 0.16 = 16%). */
   logoScale: number;
+  /** Mute the source video's audio in the export (video only). */
+  muteAudio: boolean;
+  /** Playback/export volume for the source video, 0–1 (video only). */
+  volume: number;
 }
 
 export interface ImageExportPreset {
